@@ -1,0 +1,6 @@
+image:
+  repository: tacker115/ci-demo
+  tag: latest
+
+service:
+  port: 5000
