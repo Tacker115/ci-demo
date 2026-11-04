@@ -19,8 +19,8 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Check Python file
-        run: python -m py_compile app.py
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
-      - name: Run application
-        run: python app.py
+      - name: Run tests
+        run: pytest -v
