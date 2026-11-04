@@ -6,26 +6,59 @@ pipeline {
     }
 
     stages {
-        stage('Build Docker Image') {
+
+        stage('Lint') {
+            steps {
+                sh '''
+                    python3 -m venv .jenkins-venv
+                    .jenkins-venv/bin/pip install -r requirements.txt
+                    .jenkins-venv/bin/flake8 app.py test_app.py --select=F
+                '''
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh '.jenkins-venv/bin/pytest -v'
+            }
+        }
+
+        stage('Security Scan') {
+            steps {
+                sh '.jenkins-venv/bin/bandit -q -r app.py -s B104'
+            }
+        }
+
+        stage('DB Migration') {
+            steps {
+                sh '.jenkins-venv/bin/alembic upgrade head'
+            }
+        }
+
+        stage('Build') {
             steps {
                 sh 'docker build -t $IMAGE_NAME:latest .'
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Deploy') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKERHUB_USER',
-                        passwordVariable: 'DOCKERHUB_TOKEN'
-                    )
-                ]) {
-                    sh 'echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USER" --password-stdin'
-                    sh 'docker push $IMAGE_NAME:latest'
-                    sh 'docker logout'
-                }
+                sh '''
+                    docker rm -f ci-demo-deploy || true
+                    docker run -d --name ci-demo-deploy -p 5001:5000 $IMAGE_NAME:latest
+                    sleep 2
+                    curl http://localhost:5001
+                '''
             }
+        }
+    }
+
+    post {
+        success {
+            sh 'echo "Pipeline SUCCESS" | mail -s "Jenkins ci-demo SUCCESS" tacker'
+        }
+        failure {
+            sh 'echo "Pipeline FAILURE" | mail -s "Jenkins ci-demo FAILURE" tacker'
         }
     }
 }

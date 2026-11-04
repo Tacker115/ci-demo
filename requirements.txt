@@ -1,3 +1,7 @@
 Flask
 gunicorn
 pytest
+alembic
+sqlalchemy
+flake8
+bandit
